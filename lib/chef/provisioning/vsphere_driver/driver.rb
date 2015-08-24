@@ -377,14 +377,16 @@ module ChefProvisioningVsphere
       merge_options! machine_options
       vm = vm_for(machine_spec)
       if vm
-        action_handler.perform_action "Delete VM [#{vm.parent.name}/#{vm.name}]" do
-          begin
-            vsphere_helper.stop_vm(vm, machine_options[:stop_timeout])
-            vm.Destroy_Task.wait_for_completion
-          rescue RbVmomi::Fault => fault
-            raise fault unless fault.fault.class.wsdl_name == "ManagedObjectNotFound"
-          ensure
-            machine_spec.location = nil
+        unless vm.config.template
+          action_handler.perform_action "Delete VM [#{vm.parent.name}/#{vm.name}]" do
+            begin
+              vsphere_helper.stop_vm(vm, machine_options[:stop_timeout])
+              vm.Destroy_Task.wait_for_completion
+            rescue RbVmomi::Fault => fault
+              raise fault unless fault.fault.class.wsdl_name == "ManagedObjectNotFound"
+            ensure
+              machine_spec.location = nil
+            end
           end
         end
       end
@@ -419,6 +421,78 @@ module ChefProvisioningVsphere
         start_machine(action_handler, machine_spec, machine_options)
         machine_spec.location['started_at'] = Time.now.utc.to_s
       end
+    end
+
+
+
+
+
+
+
+    # Allocate an image. Returns quickly with an ID that tracks the image.
+    #
+    # @param [Chef::Provisioning::ActionHandler] action_handler The action_handler object that is calling this method
+    # @param [Chef::Provisioning::ManagedEntry] image_spec An image specification representing this image.
+    # @param [Hash] image_options A set of options representing the desired state of the image
+    # @param [Chef::Provisioning::ManagedEntry] machine_spec A machine specification representing this machine.
+    # @param [Hash] machine_options A set of options representing the desired state of the machine used to create the image
+    def allocate_image(action_handler, image_spec, image_options, machine_spec, machine_options)
+
+      action_handler.report_progress( "Allocating machine image (VM Template) ....")
+
+      merge_options! machine_options
+      vm = vm_for(machine_spec)
+      if vm
+        action_handler.perform_action "Shutdown guest OS and power off VM [#{vm.parent.name}/#{vm.name}]" do
+  
+          vsphere_helper.stop_vm(vm, machine_options[:stop_timeout])
+        end
+        action_handler.perform_action "Convert VM [#{vm.parent.name}/#{vm.name}] to template" do
+          vsphere_helper.convert_to_template(vm)
+        end
+      end
+    end
+    
+
+    # Ready an image, waiting till the point where it is ready to be used.
+    #
+    # @param [Chef::Provisioning::ActionHandler] action_handler The action_handler object that is calling this method
+    # @param [Chef::Provisioning::ManagedEntry] image_spec An image specification representing this image.
+    # @param [Hash] image_options A set of options representing the desired state of the image
+    def ready_image(action_handler, image_spec, image_options)
+      #raise "#{self.class} does not implement ready_image"
+      #action_handler.report_progress( "!!!! in ready_image !!!!!")
+    end
+
+    # Destroy an image using this service.
+    #
+    # @param [Chef::Provisioning::ActionHandler] action_handler The action_handler object that is calling this method
+    # @param [Chef::Provisioning::ManagedEntry] image_spec An image specification representing this image.
+    # @param [Hash] image_options A set of options representing the desired state of the image
+    # @param [Hash] machine_options A set of options representing the desired state of the machine used to create the image
+    def destroy_image(action_handler, image_spec, image_options, machine_options={})
+      #raise "#{self.class} does not implement destroy_image"
+      action_handler.report_progress( "Destroying VM template....")
+
+      ##merge_options! machine_options
+      #vm = vm_for(image_spec)
+      #if vm
+      #  if vm.config.template
+      #    action_handler.perform_action "Delete VM Template [#{vm.parent.name}/#{vm.name}]" do
+      #      begin
+      #        vsphere_helper.stop_vm(vm, machine_options[:stop_timeout])
+      #        vm.Destroy_Task.wait_for_completion
+      #      rescue RbVmomi::Fault => fault
+      #        raise fault unless fault.fault.class.wsdl_name == "ManagedObjectNotFound"
+      #      ensure
+      #        machine_spec.location = nil
+      #      end
+      #    end
+      #  end
+      #end
+      #strategy = convergence_strategy_for(machine_spec, machine_options)
+      #strategy.cleanup_convergence(action_handler, machine_spec)
+
     end
 
     protected

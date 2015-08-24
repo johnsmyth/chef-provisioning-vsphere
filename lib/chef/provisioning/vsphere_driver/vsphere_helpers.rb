@@ -68,6 +68,11 @@ module ChefProvisioningVsphere
       end
     end
 
+    def convert_to_template(vm)
+      #vm.Provisioning.MarkAsTemplate
+      vm.MarkAsTemplate()
+    end
+
     #folder could be like:  /Level1/Level2/folder_name
     def find_folder(folder_name)
       base = datacenter.vmFolder
