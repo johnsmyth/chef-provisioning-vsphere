@@ -84,10 +84,6 @@ module ChefProvisioningVsphere
       rootFolder = vim.serviceInstance.content.rootFolder
       @datacenter ||= rootFolder.childEntity.grep(RbVmomi::VIM::Datacenter).find { |x| x.name == datacenter_name } ||
         raise("vSphere Datacenter not found [#{datacenter_name}]")
-      #return @datacenter if @datacenter
-      #rootFolder = vim.serviceInstance.content.rootFolder
-      #@datacenter = rootFolder.childEntity.grep(RbVmomi::VIM::Datacenter).find { |x| x.name == datacenter_name } ||
-      #  raise("vSphere Datacenter not found [#{datacenter_name}]")
     end
 
     def network_adapter_for(operation, network_name, network_label, device_key, backing_info)
@@ -226,23 +222,8 @@ module ChefProvisioningVsphere
     end
 
     def find_datastore(datastore_name)
-      #datacenter.datastore.find { |f| f.info.name == datastore_name } or raise "no such datastore #{datastore_name}"
       datacenter.datastoreFolder.childEntity.find { |f| f.name == datastore_name } or raise "no such datastore #{datastore_name}"
     end
-
-#    def find_entity(name, parent_folder, &block)
-#      parts = name.split('/').reject(&:empty?)
-#      parts.each do |item|
-#        Chef::Log.debug("Identifying entity part: #{item} in folder type: #{parent_folder.class}")
-#        if parent_folder.is_a? RbVmomi::VIM::Folder
-#          Chef::Log.debug('Parent folder is a folder')
-#          parent_folder = parent_folder.childEntity.find { |f| f.name == item }
-#        else
-#          parent_folder = block.call(parent_folder, item)
-#        end
-#      end
-#      parent_folder
-#    end
 
     def find_entity(name, parent_folder, &block)
       found_folder = nil
@@ -254,7 +235,6 @@ module ChefProvisioningVsphere
           found_folder = parent_folder.childEntity.find { |f| f.name == item }
           parent_folder.childEntity.each {|e| return find_entity(name, e, &block) }
         else
-          #found_folder = block.call(parent_folder, item)
           return block.call(parent_folder, item)
         end
       end
@@ -265,11 +245,8 @@ module ChefProvisioningVsphere
       host = find_entity(host_name, datacenter.hostFolder) do |parent, part|
         case parent
         when RbVmomi::VIM::ClusterComputeResource || RbVmomi::VIM::ComputeResource
-          #parent.host.childEntity.grep(RbVmomi::VIM::ClusterComputeResource).find { |x| x.name == part } ||
-          #  parent.host.childEntity.grep(RbVmomi::VIM::ComputeResource).find { |x| x.name == part }
           parent.host.find { |f| f.name == part }
         when RbVmomi::VIM::HostSystem
-          #parent.host.childEntity.grep(RbVmomi::VIM::HostSystem).find { |x| x.name == part }
           parent.host.find { |f| f.name == part }
         else
           nil
@@ -325,7 +302,6 @@ module ChefProvisioningVsphere
       entity_array.each do |item|
         case base
         when RbVmomi::VIM::Folder
-          #base = base.find(item)
           base = recursive_search(base, item)
         when RbVmomi::VIM::VmwareDistributedVirtualSwitch
           idx = base.summary.portgroupName.find_index(item)
